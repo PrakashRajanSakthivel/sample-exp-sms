@@ -52,15 +52,3 @@ fun TransactionItem(transaction: Transaction, modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * Data class representing a transaction.
- *
- * @param type The type of transaction (e.g., "Credit" or "Debit").
- * @param amount The amount of the transaction.
- * @param description The description of the transaction (e.g., SMS body).
- */
-data class Transaction(
-    val type: String,
-    val amount: Double,
-    val description: String
-)

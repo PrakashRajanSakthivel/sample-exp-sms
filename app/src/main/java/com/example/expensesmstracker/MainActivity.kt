@@ -2,15 +2,18 @@ package com.example.expensesmstracker
 
 import android.Manifest
 import android.content.Context
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
+import android.os.Bundle
 import android.provider.Telephony
 import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -26,25 +29,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.expensesmstracker.ui.theme.ExpenseSMSTrackerTheme
-import android.os.Handler
-import android.os.Looper
-import androidx.activity.compose.setContent
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
-import com.example.expensesmstracker.ui.theme.ExpenseSMSTrackerTheme
+//import kotlinx.coroutines.flow.collectAsState
+import androidx.compose.runtime.collectAsState  // This import is required for collectAsState
+import androidx.compose.runtime.getValue
 
-import android.content.IntentFilter
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
-import com.example.expensesmstracker.ui.theme.ExpenseSMSTrackerTheme
+//import kotlinx.coroutines.flow.collect  // For using Flow
+//import androidx.compose.runtime.LifecycleEventObserver
+
+
 
 
 class MainActivity : ComponentActivity() {
@@ -56,7 +50,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             ExpenseSMSTrackerTheme {
                 val context = LocalContext.current
-                val smsList = remember { mutableStateOf<List<Transaction>>(emptyList()) }
+                val viewModel: TransactionViewModel by viewModels {
+                    TransactionViewModelFactory((application as ExpenseTrackerApplication).repository)
+                }
 
                 // Permission handling for READ_SMS
                 val readSmsPermissionLauncher = rememberLauncherForActivityResult(
@@ -64,10 +60,12 @@ class MainActivity : ComponentActivity() {
                     onResult = { isGranted ->
                         if (isGranted) {
                             Log.d("SmsReceiver", "READ_SMS permission granted")
-                            smsList.value = readSms(context)
+                            val transactions = readSms(context)
+                            transactions.forEach { transaction ->
+                                viewModel.insert(transaction)
+                            }
                         } else {
                             Log.d("SmsReceiver", "READ_SMS permission denied")
-                            smsList.value = listOf(Transaction("Permission Denied", 0.0, "Cannot read SMS without permission"))
                         }
                     }
                 )
@@ -105,12 +103,13 @@ class MainActivity : ComponentActivity() {
                     smsReceiver = SmsReceiver().apply {
                         onSmsReceived = { messageBody ->
                             Log.d("SmsReceiver", "onSmsReceived callback triggered with message: $messageBody")
-                            // Update the SMS list when a new SMS arrives
-                            smsList.value = smsList.value + Transaction(
+                            // Insert the new transaction into the database
+                            val transaction = Transaction(
                                 type = if (messageBody.contains("credited")) "Credit" else "Debit",
                                 amount = extractAmount(messageBody),
                                 description = messageBody
                             )
+                            viewModel.insert(transaction)
                         }
                     }
                     val filter = IntentFilter("android.provider.Telephony.SMS_RECEIVED")
@@ -119,7 +118,8 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // Display the list of transactions
-                SMSReaderScreen(transactions = smsList.value)
+                val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
+                SMSReaderScreen(transactions = transactions)
             }
         }
     }
@@ -162,8 +162,18 @@ private fun readSms(context: Context): List<Transaction> {
                 if (body.contains("credited") || body.contains("debited")) {
                     val amount = extractAmount(body)
                     val type = if (body.contains("credited")) "Credit" else "Debit"
-                    Log.d("SMSReader", "Transaction added: ${Transaction(type, amount, body)}")
-                    transactionList.add(Transaction(type, amount, body))
+                    Log.d("SMSReader", "Transaction added: ${Transaction(
+                        type = type, // String
+                        amount = amount, // Double
+                        description = body, // String
+                        datetime = System.currentTimeMillis() // Long
+                    )}")
+                    transactionList.add(Transaction(
+                        type = type, // String
+                        amount = amount, // Double
+                        description = body, // String
+                        datetime = System.currentTimeMillis() // Long
+                    ))
                 }
             } while (cursor.moveToNext())
         } else {
@@ -189,14 +199,10 @@ fun SMSReaderScreenPreview() {
     ExpenseSMSTrackerTheme {
         // Create a sample list of transactions for the preview
         val sampleTransactions = listOf(
-            Transaction("Credit", 1000.0, "You have received Rs. 1000 credited to your account."),
-            Transaction("Debit", 500.0, "Rs. 500 debited from your account for shopping.")
+            Transaction(id=0, type="Credit", amount=2000.0, description = "test")
         )
 
         // Pass the sample transactions to SMSReaderScreen
         SMSReaderScreen(transactions = sampleTransactions)
     }
 }
-
-
-
