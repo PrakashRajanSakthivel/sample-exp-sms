@@ -18,4 +18,7 @@ interface CategoryDao {
 
     @Query("SELECT * FROM categories WHERE :description LIKE '%' || keywords || '%'")
     suspend fun getCategoryByDescription(description: String): Category?
+
+    @Query("SELECT * FROM categories")
+    suspend fun getAllCategoriesSync(): List<Category>
 }

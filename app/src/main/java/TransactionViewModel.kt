@@ -17,4 +17,8 @@ class TransactionViewModel(private val repository: TransactionRepository) : View
     fun insertCategory(category: Category) = viewModelScope.launch {
         repository.insertCategory(category)
     }
+
+    fun linkTransactionsToCategories() = viewModelScope.launch {
+        repository.linkTransactionsToCategories()
+    }
 }

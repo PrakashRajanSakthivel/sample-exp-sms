@@ -38,4 +38,19 @@ class TransactionRepository(
         transactionDao.insert(updatedTransaction)
     }
 
+    suspend fun linkTransactionsToCategories() {
+        val transactions = transactionDao.getAllTransactionsSync()
+        val categories = categoryDao.getAllCategoriesSync()
+
+        for (transaction in transactions) {
+            for (category in categories) {
+                if (category.keywords.any { keyword ->
+                        transaction.description.contains(keyword, ignoreCase = true)
+                    }) {
+                    val updatedTransaction = transaction.copy(categoryId = category.id)
+                    transactionDao.update(updatedTransaction)
+                }
+            }
+        }
+    }
 }

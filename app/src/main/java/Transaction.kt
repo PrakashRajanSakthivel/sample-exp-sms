@@ -10,5 +10,5 @@ data class Transaction(
     val amount: Double, // Transaction amount
     val description: String, // SMS description
     val datetime: Long = System.currentTimeMillis(), // Timestamp of the transaction
-    val categoryId: Long? = null // Link to Category
+    val categoryId: Long? = null
 )
