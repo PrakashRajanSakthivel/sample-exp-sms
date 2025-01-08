@@ -4,10 +4,13 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import android.content.Context
+import androidx.room.TypeConverters
 
-@Database(entities = [Transaction::class], version = 1)
+@Database(entities = [Transaction::class, Category::class], version = 2)
+@TypeConverters(Converters::class) // Add this line
 abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
+    abstract fun categoryDao(): CategoryDao
 
     companion object {
         @Volatile
@@ -19,7 +22,8 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "expense_tracker_db"
-                ).build()
+                ).fallbackToDestructiveMigration() // Use this for schema changes
+                    .build()
                 INSTANCE = instance
                 instance
             }

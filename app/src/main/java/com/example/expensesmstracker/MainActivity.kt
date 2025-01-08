@@ -17,6 +17,8 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -37,8 +39,11 @@ import androidx.compose.runtime.getValue
 
 //import kotlinx.coroutines.flow.collect  // For using Flow
 //import androidx.compose.runtime.LifecycleEventObserver
-
-
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.setValue
 
 
 class MainActivity : ComponentActivity() {
@@ -204,5 +209,98 @@ fun SMSReaderScreenPreview() {
 
         // Pass the sample transactions to SMSReaderScreen
         SMSReaderScreen(transactions = sampleTransactions)
+    }
+}
+
+@Composable
+fun AddCategoryDialog(
+    onDismiss: () -> Unit,
+    onSave: (Category) -> Unit
+) {
+    var categoryName by remember { mutableStateOf("") }
+    var keywords by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Category") },
+        text = {
+            Column {
+                TextField(
+                    value = categoryName,
+                    onValueChange = { categoryName = it },
+                    label = { Text("Category Name") }
+                )
+                TextField(
+                    value = keywords,
+                    onValueChange = { keywords = it },
+                    label = { Text("Keywords (comma-separated)") }
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val category = Category(
+                    name = categoryName,
+                    keywords = keywords.split(",").map { it.trim() }
+                )
+                onSave(category)
+                onDismiss()
+            }) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun TransactionScreen(viewModel: TransactionViewModel) {
+    val transactions by viewModel.allTransactions.collectAsState(initial = emptyList())
+    val categories by viewModel.allCategories.collectAsState(initial = emptyList())
+
+    // State for showing the Add Category dialog
+    var showAddCategoryDialog by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Button(
+            onClick = { showAddCategoryDialog = true },
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text("Add Category")
+        }
+
+        LazyColumn {
+            items(
+                items = transactions, // Pass the list of transactions
+                key = { transaction -> transaction.id } // Use the transaction ID as the key
+            ) { transaction ->
+                val category = categories.find { it.id == transaction.categoryId }
+                TransactionItem(transaction = transaction, category = category?.name)
+            }
+        }
+    }
+
+    // Add Category Dialog
+    if (showAddCategoryDialog) {
+        AddCategoryDialog(
+            onDismiss = { showAddCategoryDialog = false },
+            onSave = { category ->
+                viewModel.insertCategory(category)
+            }
+        )
+    }
+}
+
+@Composable
+fun TransactionItem(transaction: Transaction, category: String?) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text(text = "Type: ${transaction.type}")
+        Text(text = "Amount: ${transaction.amount}")
+        Text(text = "Description: ${transaction.description}")
+        Text(text = "Category: ${category ?: "Uncategorized"}")
     }
 }
